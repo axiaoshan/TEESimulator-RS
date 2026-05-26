@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEESimulator-RS</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #212121;
+    --muted: #757575;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --accent: #1976d2;
+    --accent-fg: #ffffff;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --fg: #e0e0e0;
+      --muted: #9e9e9e;
+      --card: #1e1e1e;
+      --border: #333333;
+      --accent: #90caf9;
+      --accent-fg: #000000;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background-color: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .header {
+    text-align: center;
+    padding: 24px 0 16px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .header p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+  }
+  .status-row:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
+  .status-label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .status-value {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-ok { background: #4caf50; color: #fff; }
+  .badge-warn { background: #ff9800; color: #fff; }
+  .badge-err { background: #f44336; color: #fff; }
+  @media (prefers-color-scheme: dark) {
+    .badge-ok { background: #388e3c; }
+    .badge-warn { background: #f57c00; }
+    .badge-err { background: #d32f2f; }
+  }
+  .info-text {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    text-align: center;
+    margin-top: 16px;
+    padding: 0 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>TEESimulator-RS</h1>
+    <p>TEE Emulation for Android</p>
+  </div>
+
+  <div class="status-card">
+    <div class="status-row">
+      <span class="status-label">Status</span>
+      <span class="status-value"><span class="badge badge-ok" id="status-badge">Running</span></span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Version</span>
+      <span class="status-value" id="version">-</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Keybox</span>
+      <span class="status-value" id="keybox">-</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Targets</span>
+      <span class="status-value" id="targets">-</span>
+    </div>
+  </div>
+
+  <p class="info-text">
+    Configuration files are located at <code>/data/adb/tricky_store/</code>.<br>
+    Manage this module through your root manager.
+  </p>
+
+  <script>
+    function readText(path) {
+      return ksu.readFile(path).catch(() => null);
+    }
+
+    async function init() {
+      const [version, keybox, targets, teeStatus] = await Promise.all([
+        readText('/data/adb/modules/tricky_store/module.prop'),
+        readText('/data/adb/tricky_store/keybox.xml'),
+        readText('/data/adb/tricky_store/target.txt'),
+        readText('/data/adb/tricky_store/tee_status.txt'),
+      ]);
+
+      if (version) {
+        const match = version.match(/^version=(.+)$/m);
+        document.getElementById('version').textContent = match ? match[1] : '-';
+      }
+
+      if (keybox) {
+        const hasKey = keybox.includes('<Keybox') || keybox.includes('<PrivateKey');
+        document.getElementById('keybox').innerHTML = hasKey
+          ? '<span class="badge badge-ok">Loaded</span>'
+          : '<span class="badge badge-warn">Not Found</span>';
+      } else {
+        document.getElementById('keybox').innerHTML = '<span class="badge badge-err">Missing</span>';
+      }
+
+      if (targets) {
+        const lines = targets.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+        document.getElementById('targets').textContent = lines.length > 0 ? lines.length + ' app(s)' : 'None';
+      }
+
+      if (teeStatus) {
+        const ok = teeStatus.toLowerCase().includes('ok') || teeStatus.toLowerCase().includes('running');
+        const badge = document.getElementById('status-badge');
+        badge.textContent = ok ? 'Running' : 'Error';
+        badge.className = 'badge ' + (ok ? 'badge-ok' : 'badge-err');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
