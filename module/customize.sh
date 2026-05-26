@@ -52,6 +52,9 @@ for file in customize.sh module.prop service.sh sepolicy.rule daemon action.sh a
   install_file "$file" "$MODPATH"
 done
 
+mkdir -p "$MODPATH/webroot"
+install_file "webroot/index.html" "$MODPATH/webroot"
+
 # Handle service.apk or classes.dex
 if unzip -l "$ZIPFILE" | grep -q "service.apk"; then
   install_file "service.apk" "$MODPATH"
